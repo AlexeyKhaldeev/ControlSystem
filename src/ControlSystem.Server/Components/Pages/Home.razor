@@ -1,0 +1,98 @@
+@page "/"
+@attribute [Authorize(Policy = "OperatorUi")]
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+@inject MonitoringService Monitoring
+@inject ILogger<Home> Logger
+
+<PageTitle>Устройства — ControlSystem</PageTitle>
+<main>
+  <header>
+    <div><p class="eyebrow">CONTROLSYSTEM / MONITORING CORE</p><h1>Компьютеры экспозиции</h1></div>
+    <form method="post" action="/logout"><AntiforgeryToken /><button class="secondary">Выйти</button></form>
+  </header>
+  <section class="summary" aria-label="Состояние сети">
+    <div><span class="metric">@_devices.Count</span> устройств</div>
+    <div><span class="metric online">@_devices.Count(d => d.Status == DeviceStatus.Online)</span> online</div>
+    <div><span class="metric offline">@_devices.Count(d => d.Status == DeviceStatus.Offline)</span> offline</div>
+  </section>
+  <p class="muted">Телеметрия каждые 10 секунд · обновление страницы каждые 5 секунд · время UTC</p>
+  @if (_error is not null) { <p role="alert" class="error">@_error</p> }
+  @if (_loading) { <p>Загрузка устройств…</p> }
+  else if (_devices.Count == 0) { <section class="empty"><h2>Ожидаем первый heartbeat</h2><p>После запуска настроенного агента здесь появится компьютер.</p></section> }
+  else
+  {
+    <div class="table-scroll"><table>
+      <thead><tr><th>Устройство</th><th>Статус</th><th>CPU</th><th>RAM</th><th>Диски: свободно</th><th>Uptime</th><th>Последний heartbeat</th></tr></thead>
+      <tbody>
+      @foreach (var device in _devices)
+      {
+        <tr @key="device.DeviceId">
+          <td><strong>@device.Hostname</strong><small>@device.OperatingSystem · v@device.AgentVersion</small>@if (device.IsSimulated) { <span class="tag">Симулятор</span> }</td>
+          <td><span class="status @device.Status.ToString().ToLowerInvariant()">@device.Status</span></td>
+          <td>@(device.Telemetry.CpuUsagePercent is { } cpu ? $"{cpu:F1}%" : "Прогрев")</td>
+          <td>@GiB(device.Telemetry.MemoryTotalBytes - device.Telemetry.MemoryAvailableBytes) / @GiB(device.Telemetry.MemoryTotalBytes) GiB</td>
+          <td>@foreach (var disk in device.Telemetry.Disks) { <small>@disk.Name @GiB(disk.FreeBytes) / @GiB(disk.TotalBytes) GiB</small> }</td>
+          <td>@TimeSpan.FromSeconds(device.Telemetry.UptimeSeconds).ToString("d'd 'hh'h 'mm'm'")</td>
+          <td>@device.LastSeenAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+        </tr>
+      }
+      </tbody>
+    </table></div>
+  }
+  <footer>Последнее обновление: @(_refreshedAt?.ToString("HH:mm:ss 'UTC'") ?? "—")</footer>
+</main>
+
+@code {
+    private IReadOnlyList<DeviceResponse> _devices = [];
+    private readonly CancellationTokenSource _stop = new();
+    private Task? _refreshTask;
+    private DateTimeOffset? _refreshedAt;
+    private string? _error;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await RefreshAsync();
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) _refreshTask = RefreshLoopAsync();
+        return Task.CompletedTask;
+    }
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            _devices = await Monitoring.ListAsync(_stop.Token);
+            _refreshedAt = DateTimeOffset.UtcNow;
+            _error = null;
+        }
+        catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
+        catch (Exception error)
+        {
+            Logger.LogError(error, "Cannot refresh devices");
+            _error = "Не удалось обновить данные. Отображается последний полученный список.";
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task RefreshLoopAsync()
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_stop.Token))
+                await InvokeAsync(async () => { await RefreshAsync(); StateHasChanged(); });
+        }
+        catch (OperationCanceledException) when (_stop.IsCancellationRequested) { }
+    }
+
+    private static string GiB(long bytes) => (bytes / 1073741824d).ToString("F1");
+
+    public async ValueTask DisposeAsync()
+    {
+        await _stop.CancelAsync();
+        if (_refreshTask is not null) await _refreshTask;
+        _stop.Dispose();
+    }
+}

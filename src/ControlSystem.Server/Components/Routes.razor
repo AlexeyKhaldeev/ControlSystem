@@ -1,0 +1,8 @@
+<Router AppAssembly="typeof(Program).Assembly">
+  <Found Context="routeData">
+    <AuthorizeRouteView RouteData="routeData">
+      <NotAuthorized><p>Сессия завершена. <a href="/login">Войти снова</a></p></NotAuthorized>
+    </AuthorizeRouteView>
+  </Found>
+  <NotFound><p>Страница не найдена.</p></NotFound>
+</Router>
