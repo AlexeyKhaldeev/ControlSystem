@@ -1,6 +1,6 @@
 # План работ и делегирование
 
-Обновлено: 22 ноября 2026. Проверки и ограничения среды — `verification.md`.
+Обновлено: 24 ноября 2026. Проверки и ограничения среды — `verification.md`.
 
 ## Выполнено в стартовом инкременте
 
@@ -26,6 +26,19 @@
 - [x] Полная сборка solution без отключения Blazor assets: 0 ошибок, 0 предупреждений.
 - [x] Полный прямой прогон xUnit: 25 тестов, 22 passed, 3 failed при подготовке HTTPS (`AppleCrypto.CreateTemporaryKeychain`), 0 skipped. Обе новые регрессии cookie challenge прошли.
 - [ ] Подтвердить 25/25 в обычном терминале. Здесь стандартный `dotnet test` прерван до тестов: VSTest socket bind получает `SocketException (13): Permission denied`; HTTPS fixture отдельно упирается в AppleCrypto, до HTTP-запросов.
+
+## Security Hardening: cookie и Blazor circuit
+
+- [x] В отдельном worktree от main воспроизведены сохранение authenticated principal после expiry cookie и replay cookie после logout (настоящий handler + зарегистрированный Blazor provider).
+- [x] Серверные UI-сессии: expiry, отзыв при logout, отказ при replay и перезапуске.
+- [x] Повторная проверка circuit раз в секунду; Home проверяет доступ до/после чтения и скрывает защищённый UI.
+- [x] Независимое read-only review специализированным reviewer; блокирующих замечаний по коду и регрессиям нет.
+- [x] Итоговый dotnet build: 0 warnings/errors; dotnet test: 32 passed, 0 failed, 0 skipped (7 новых регрессий).
+- [ ] Browser/WebSocket E2E с двумя вкладками: подтвердить обновление UI и reconnect после expiry/logout.
+
+- [x] Интеграция Dashboard из `origin/main` (`2e8d6c3`), 24 ноября 2026: оба раздела задач и все исправления Home сохранены; адаптирован DI harness DashboardTests. Итоговый build: 0 warnings/errors; tests: 37 passed, 0 failed, 0 skipped (7 Security + 5 Dashboard регрессий).
+
+Подробности воспроизведения, регрессии, результаты и ограничения: `security-hardening.md`.
 
 ## Dashboard Improvements — 23 ноября 2026
 

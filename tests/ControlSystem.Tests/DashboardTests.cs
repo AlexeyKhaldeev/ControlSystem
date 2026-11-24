@@ -1,3 +1,8 @@
+using System.Security.Claims;
+using ControlSystem.Server.Security;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Server;
 using System.Globalization;
 using System.Net;
 using ControlSystem.Contracts;
@@ -77,9 +82,7 @@ public sealed class DashboardTests
         var service = CreateService(store, clock);
         await service.ReceiveAsync(TestData.Heartbeat(clock.Now), CancellationToken.None);
         var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddSingleton(service);
-        services.AddSingleton<AntiforgeryStateProvider, TestAntiforgeryStateProvider>();
+        ConfigureRenderingServices(services, service);
         await using var provider = services.BuildServiceProvider();
         await using var renderer = new DashboardHtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         await renderer.Dispatcher.InvokeAsync(async () =>
@@ -130,9 +133,7 @@ public sealed class DashboardTests
     private static async Task<string> RenderAsync(MonitoringService service)
     {
         var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddSingleton(service);
-        services.AddSingleton<AntiforgeryStateProvider, TestAntiforgeryStateProvider>();
+        ConfigureRenderingServices(services, service);
         await using var provider = services.BuildServiceProvider();
         await using var renderer = new DashboardHtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         return await renderer.Dispatcher.InvokeAsync(async () =>
@@ -141,6 +142,24 @@ public sealed class DashboardTests
             await root.QuiescenceTask;
             return WebUtility.HtmlDecode(root.ToHtmlString());
         });
+    }
+
+    private static void ConfigureRenderingServices(ServiceCollection services, MonitoringService service)
+    {
+        services.AddLogging();
+        services.AddSingleton(service);
+        services.AddSingleton<AntiforgeryStateProvider, TestAntiforgeryStateProvider>();
+        services.AddAuthorizationCore(options => options.AddPolicy("OperatorUi", policy => policy.RequireRole("Operator")));
+        services.AddCascadingAuthenticationState();
+        var sessions = new OperatorCircuitSessions(TimeProvider.System);
+        var identity = new ClaimsIdentity([
+            new Claim(ClaimTypes.Role, "Operator"),
+            new Claim(OperatorCircuitSessions.SessionIdClaimType, sessions.Create(DateTimeOffset.UtcNow.AddHours(8)))
+        ], CookieAuthenticationDefaults.AuthenticationScheme);
+        var authentication = new ServerAuthenticationStateProvider();
+        authentication.SetAuthenticationState(Task.FromResult(new AuthenticationState(new ClaimsPrincipal(identity))));
+        services.AddSingleton(sessions);
+        services.AddSingleton<AuthenticationStateProvider>(authentication);
     }
 
     // Execute the existing component render tree without a browser/SignalR host.
