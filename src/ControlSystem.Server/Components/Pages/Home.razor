@@ -23,20 +23,20 @@
   <p class="muted">Телеметрия каждые 10 секунд · обновление страницы каждые 5 секунд · время UTC</p>
   @if (_error is not null) { <p role="alert" class="error">@_error</p> }
   @if (_loading) { <p>Загрузка устройств…</p> }
-  else if (_devices.Count == 0) { <section class="empty"><h2>Ожидаем первый heartbeat</h2><p>После запуска настроенного агента здесь появится компьютер.</p></section> }
-  else
+  else if (_devices.Count == 0 && _error is null) { <section class="empty"><h2>Ожидаем первый heartbeat</h2><p>После запуска настроенного агента здесь появится компьютер.</p></section> }
+  else if (_devices.Count > 0)
   {
     <div class="table-scroll"><table>
-      <thead><tr><th>Устройство</th><th>Статус</th><th>CPU</th><th>RAM</th><th>Диски: свободно</th><th>Uptime</th><th>Последний heartbeat</th></tr></thead>
+      <thead><tr><th>Устройство</th><th>Статус</th><th>CPU</th><th>RAM: занято / всего</th><th>Диски: свободно</th><th>Uptime</th><th>Последний heartbeat</th></tr></thead>
       <tbody>
       @foreach (var device in _devices)
       {
         <tr @key="device.DeviceId">
-          <td><strong>@device.Hostname</strong><small>@device.OperatingSystem · v@device.AgentVersion</small>@if (device.IsSimulated) { <span class="tag">Симулятор</span> }</td>
-          <td><span class="status @device.Status.ToString().ToLowerInvariant()">@device.Status</span></td>
+          <td><strong>@device.Hostname</strong><small>@device.OperatingSystem · v@(device.AgentVersion)</small>@if (device.IsSimulated) { <span class="tag">Симулятор</span> }</td>
+          <td><span class="status @device.Status.ToString().ToLowerInvariant()">@device.Status</span>@if (device.Status == DeviceStatus.Offline) { <small>Последний полученный снимок</small> }</td>
           <td>@(device.Telemetry.CpuUsagePercent is { } cpu ? $"{cpu:F1}%" : "Прогрев")</td>
           <td>@GiB(device.Telemetry.MemoryTotalBytes - device.Telemetry.MemoryAvailableBytes) / @GiB(device.Telemetry.MemoryTotalBytes) GiB</td>
-          <td>@foreach (var disk in device.Telemetry.Disks) { <small>@disk.Name @GiB(disk.FreeBytes) / @GiB(disk.TotalBytes) GiB</small> }</td>
+          <td>@if (device.Telemetry.Disks.Count == 0) { <span>—</span> }@foreach (var disk in device.Telemetry.Disks) { <small>@disk.Name @GiB(disk.FreeBytes) / @GiB(disk.TotalBytes) GiB</small> }</td>
           <td>@TimeSpan.FromSeconds(device.Telemetry.UptimeSeconds).ToString("d'd 'hh'h 'mm'm'")</td>
           <td>@device.LastSeenAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
         </tr>

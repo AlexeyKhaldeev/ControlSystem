@@ -70,10 +70,34 @@ Reviewer не нашёл блокирующих проблем в исправл
 - Перезапуск сервера завершает все UI-сессии, включая cookies до обновления.
   Registry рассчитан на единственный deployable сервер; административного revoke API
   и отзыва всех сессий при ротации operator token в этой задаче нет.
-- Commit, merge, push и deployment не выполнялись.
+- На этапе исходного hardening commit, merge, push и deployment не выполнялись; последующая интеграция описана ниже.
 
 Основание подхода: [Microsoft: Blazor authentication and authorization](https://learn.microsoft.com/en-us/aspnet/core/blazor/security/?view=aspnetcore-10.0).
 
 Неблокирующий риск тестов: короткий двухсекундный срок cookie в regression test может
 дать нестабильность на перегруженном CI; при проявлении следует заменить wall-clock ожидание
 управляемым TimeProvider для cookie, сохранив проверку реального handler.
+
+
+## Интеграция Dashboard — 24 ноября 2026
+
+- Создан коммит `308efa5` — `fix: harden operator sessions and Blazor circuits`.
+- Выполнен `git fetch origin`; в `codex/security-circuit` интегрирована `origin/main`
+  на `2e8d6c3` с уже объединёнными Dashboard Improvements.
+- Единственный текстовый конфликт — `docs/tasks.md`: обе ветки добавили раздел перед
+  списком следующих задач. Сохранены оба раздела, их результаты и открытые E2E-проверки.
+- `Home.razor` объединился автоматически и проверен вручную: сохранены фактическая версия,
+  подпись RAM, пустые диски, Offline snapshot, различение ошибки и пустого списка,
+  AuthorizeView и проверки UI-сессии до/после чтения. Выбор ours/theirs не применялся.
+- В `DashboardTests.cs` адаптирован только DI harness: действующая тестовая UI-сессия,
+  provider состояния, authorization и cascading state. Все assertions Dashboard сохранены.
+- Проверен состав изменений относительно `origin/main`: 11 относящихся к задаче файлов,
+  без изменений Contracts/Agent, конфигураций, credentials или сертификатов.
+  Поиск характерных private-key/password/GitHub-token маркеров в новых исходниках и
+  тестах ничего не нашёл; литералы токенов — заведомо синтетические тестовые значения.
+- `dotnet build ControlSystem.sln`: exit 0, 0 warnings, 0 errors.
+- `dotnet test ControlSystem.sln`: exit 0, **37 passed, 0 failed, 0 skipped**, 4 секунды.
+  Включены все 7 Security и 5 Dashboard regression cases.
+- Команды выполнялись вне sandbox после разрешения; sandbox build вновь завис без вывода.
+- Независимый read-only reviewer проверил объединённый код и тестовый harness: блокирующих замечаний нет; Dashboard assertions, security guards и границы компонентов сохранены.
+- Browser/WebSocket E2E остаётся открытой проверкой. Push и merge в main не выполнялись.

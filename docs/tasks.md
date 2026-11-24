@@ -1,6 +1,6 @@
 # План работ и делегирование
 
-Обновлено: 23 ноября 2026. Проверки и ограничения среды — `verification.md`.
+Обновлено: 24 ноября 2026. Проверки и ограничения среды — `verification.md`.
 
 ## Выполнено в стартовом инкременте
 
@@ -36,7 +36,19 @@
 - [x] Итоговый dotnet build: 0 warnings/errors; dotnet test: 32 passed, 0 failed, 0 skipped (7 новых регрессий).
 - [ ] Browser/WebSocket E2E с двумя вкладками: подтвердить обновление UI и reconnect после expiry/logout.
 
+- [x] Интеграция Dashboard из `origin/main` (`2e8d6c3`), 24 ноября 2026: оба раздела задач и все исправления Home сохранены; адаптирован DI harness DashboardTests. Итоговый build: 0 warnings/errors; tests: 37 passed, 0 failed, 0 skipped (7 Security + 5 Dashboard регрессий).
+
 Подробности воспроизведения, регрессии, результаты и ограничения: `security-hardening.md`.
+
+## Dashboard Improvements — 23 ноября 2026
+
+- [x] Исправлено Razor-выражение версии агента: `v@(device.AgentVersion)` выводит фактическое значение.
+- [x] Уточнена подпись RAM (занято / всего), пустые диски обозначены прочерком; Offline поясняет, что показан последний снимок.
+- [x] При ошибке первого чтения не показывается ложное ожидание первого heartbeat.
+- [x] Добавлены 5 регрессионных UI-тестов: версия, CPU/RAM/диски в en-US и ru-RU, uptime, прогрев CPU, Online/Offline на границе 35 секунд, ошибка чтения, повторный рендер и восстановление.
+- [x] Frontend проверил цикл обновления и disposal; независимый read-only reviewer не обнаружил дефектов. API, DTO, авторизация и Windows Agent не изменены.
+- [x] В worktree `dashboard-improvements`, ветка `codex/dashboard-improvements`: `dotnet build ControlSystem.sln` — 0 warnings / 0 errors; `dotnet test ControlSystem.sln` — 30 passed / 0 failed / 0 skipped (946 ms). Выполнено вне sandbox после зависания sandbox-запуска без вывода.
+- [ ] Интерактивный browser/E2E: реальный пятисекундный таймер, SignalR/reconnect и отмена при закрытии circuit. Статический renderer проверяет повторный рендер через тестовый вызов lifecycle, но не запускает OnAfterRenderAsync и timer.
 
 ## Следующие независимые задачи
 
