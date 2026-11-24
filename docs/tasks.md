@@ -27,6 +27,16 @@
 - [x] Полный прямой прогон xUnit: 25 тестов, 22 passed, 3 failed при подготовке HTTPS (`AppleCrypto.CreateTemporaryKeychain`), 0 skipped. Обе новые регрессии cookie challenge прошли.
 - [ ] Подтвердить 25/25 в обычном терминале. Здесь стандартный `dotnet test` прерван до тестов: VSTest socket bind получает `SocketException (13): Permission denied`; HTTPS fixture отдельно упирается в AppleCrypto, до HTTP-запросов.
 
+## Dashboard Improvements — 23 ноября 2026
+
+- [x] Исправлено Razor-выражение версии агента: `v@(device.AgentVersion)` выводит фактическое значение.
+- [x] Уточнена подпись RAM (занято / всего), пустые диски обозначены прочерком; Offline поясняет, что показан последний снимок.
+- [x] При ошибке первого чтения не показывается ложное ожидание первого heartbeat.
+- [x] Добавлены 5 регрессионных UI-тестов: версия, CPU/RAM/диски в en-US и ru-RU, uptime, прогрев CPU, Online/Offline на границе 35 секунд, ошибка чтения, повторный рендер и восстановление.
+- [x] Frontend проверил цикл обновления и disposal; независимый read-only reviewer не обнаружил дефектов. API, DTO, авторизация и Windows Agent не изменены.
+- [x] В worktree `dashboard-improvements`, ветка `codex/dashboard-improvements`: `dotnet build ControlSystem.sln` — 0 warnings / 0 errors; `dotnet test ControlSystem.sln` — 30 passed / 0 failed / 0 skipped (946 ms). Выполнено вне sandbox после зависания sandbox-запуска без вывода.
+- [ ] Интерактивный browser/E2E: реальный пятисекундный таймер, SignalR/reconnect и отмена при закрытии circuit. Статический renderer проверяет повторный рендер через тестовый вызов lifecycle, но не запускает OnAfterRenderAsync и timer.
+
 ## Следующие независимые задачи
 
 | Приоритет | Задача / агент | Область владения | Критерий готовности |
