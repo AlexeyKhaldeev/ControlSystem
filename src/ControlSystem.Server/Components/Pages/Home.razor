@@ -4,8 +4,12 @@
 @implements IAsyncDisposable
 @inject MonitoringService Monitoring
 @inject ILogger<Home> Logger
+@inject AuthenticationStateProvider Authentication
+@inject ControlSystem.Server.Security.OperatorCircuitSessions Sessions
 
 <PageTitle>Устройства — ControlSystem</PageTitle>
+<AuthorizeView Policy="OperatorUi">
+<Authorized>
 <main>
   <header>
     <div><p class="eyebrow">CONTROLSYSTEM / MONITORING CORE</p><h1>Компьютеры экспозиции</h1></div>
@@ -42,6 +46,9 @@
   }
   <footer>Последнее обновление: @(_refreshedAt?.ToString("HH:mm:ss 'UTC'") ?? "—")</footer>
 </main>
+</Authorized>
+<NotAuthorized><p>Сессия завершена. <a href="/login">Войти снова</a></p></NotAuthorized>
+</AuthorizeView>
 
 @code {
     private IReadOnlyList<DeviceResponse> _devices = [];
@@ -63,7 +70,19 @@
     {
         try
         {
-            _devices = await Monitoring.ListAsync(_stop.Token);
+            if (!Sessions.IsValid((await Authentication.GetAuthenticationStateAsync()).User))
+            {
+                _devices = [];
+                return;
+            }
+            var devices = await Monitoring.ListAsync(_stop.Token);
+            // A logout or expiry during the store read must not publish its result.
+            if (!Sessions.IsValid((await Authentication.GetAuthenticationStateAsync()).User))
+            {
+                _devices = [];
+                return;
+            }
+            _devices = devices;
             _refreshedAt = DateTimeOffset.UtcNow;
             _error = null;
         }

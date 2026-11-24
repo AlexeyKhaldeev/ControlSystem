@@ -16,7 +16,7 @@ Authorization: `Bearer <token>`; query-string credentials не принимаю�
 | GET | `/health/ready` | Anonymous HTTPS | 200: БД/схема доступны; иначе 503 |
 | GET | `/login` | Anonymous HTTPS | HTML форма + antiforgery cookie |
 | POST | `/login` | Token в form body + antiforgery | 302 на `/`, secure operator cookie |
-| POST | `/logout` | Operator cookie + antiforgery | Завершение сессии, 302 на `/login` |
+| POST | `/logout` | Operator cookie + antiforgery | Отзыв текущей серверной UI-сессии, удаление cookie, 302 на `/login` |
 | GET | `/` | Operator cookie | Blazor UI; без cookie — 302 на `/login` |
 | POST | `/_blazor/negotiate?negotiateVersion=1` | Operator cookie | 200, SignalR negotiation JSON; без cookie — 401 |
 | — | `/_blazor/*` | Operator cookie | Внутренний SignalR Blazor, не API для агентов |
@@ -109,3 +109,13 @@ cookie не открывает bearer-only API.
 
 Credential allowlist сейчас в защищённой конфигурации, не в таблице. Статус не хранится.
 Таблица `__EFMigrationsHistory` обслуживается EF. История метрик, команды и аудит в текущую схему не входят.
+
+## Жизненный цикл UI-сессии
+
+Cookie действует 8 часов без sliding expiration. Сервер хранит только случайный ID
+UI-сессии и её expiry в памяти; logout отзывает сессию для всех использующих её вкладок
+и запрещает replay сохранённой cookie. Отдельный вход создаёт независимую сессию.
+После перезапуска все UI-cookie требуют нового входа. Административного revoke API нет.
+Circuit проверяет сессию каждую секунду; чтение и публикация очередного snapshot дополнительно
+проверяются в Home. Новые HTTP/SignalR-подключения с отозванной cookie отклоняются.
+Ранее полученные данные остаются у клиента; закрытие транспортного соединения не гарантируется.

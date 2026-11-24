@@ -8,6 +8,7 @@ using ControlSystem.Server.Monitoring;
 using ControlSystem.Server.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
@@ -63,6 +64,8 @@ public partial class Program
         }
         else throw new InvalidOperationException("Database:Provider must be PostgreSql or InMemory.");
         builder.Services.AddScoped<MonitoringService>();
+        builder.Services.AddSingleton<OperatorCircuitSessions>();
+        builder.Services.AddScoped<OperatorCircuitCookieEvents>();
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(options =>
             {
@@ -73,6 +76,7 @@ public partial class Program
                 options.Cookie.SameSite = SameSiteMode.Strict;
                 options.ExpireTimeSpan = TimeSpan.FromHours(8);
                 options.SlidingExpiration = false;
+                options.EventsType = typeof(OperatorCircuitCookieEvents);
             })
             .AddScheme<AuthenticationSchemeOptions, TokenAuthenticationHandler>(TokenAuthenticationHandler.SchemeName, _ => { });
         builder.Services.AddAuthorization(options =>
@@ -83,6 +87,7 @@ public partial class Program
         });
         builder.Services.AddCascadingAuthenticationState();
         builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+        builder.Services.AddScoped<AuthenticationStateProvider, OperatorCircuitAuthenticationStateProvider>();
         builder.Services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
