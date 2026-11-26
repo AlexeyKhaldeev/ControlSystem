@@ -101,3 +101,56 @@ Reviewer не нашёл блокирующих проблем в исправл
 - Команды выполнялись вне sandbox после разрешения; sandbox build вновь завис без вывода.
 - Независимый read-only reviewer проверил объединённый код и тестовый harness: блокирующих замечаний нет; Dashboard assertions, security guards и границы компонентов сохранены.
 - Browser/WebSocket E2E остаётся открытой проверкой. Push и merge в main не выполнялись.
+
+
+## Browser E2E Validation — 24 ноября 2026
+
+Ветка, подготовленная пользователем: `test/browser-e2e`. Product-код, Contracts и Agent
+не изменялись. Участвовали frontend (сценарии, тесты и анализ DI) и reviewer
+(независимое read-only ревью реализации и документации).
+
+Полный запуск в настоящем Google Chrome через Microsoft.Playwright 1.65.0,
+Kestrel HTTPS и доверенный localhost-сертификат. TLS validation не отключалась;
+отдельный отрицательный case подтвердил `ERR_CERT_AUTHORITY_INVALID` для недоверенного
+self-signed сертификата. С разрешения установлен .NET localhost dev certificate
+в доверие macOS; PEM/key экспортированы в игнорируемую `.local/browser-e2e`, key mode 600.
+Шаги запуска и отзыва доверия: [browser-e2e.md](browser-e2e.md).
+
+Проверены login/anonymous, Secure/HttpOnly/Strict cookie, bearer-only API boundary,
+logout открытого Dashboard в двух вкладках, cookie replay, expiry, независимость сессий,
+реальный refresh, восстановление того же circuit без reload, offline → logout/expiry
+→ отказ повторной авторизации. После завершения сессии новые telemetry markers
+не приходят в DOM/входящих WebSocket frames; наблюдатель frames имеет положительный
+контроль. `ListAsync` не вызывается в шестисекундном окне, пересекающем реальный
+пятисекундный refresh tick.
+
+Результаты финального прогона (вне sandbox):
+
+| Команда | Результат |
+|---|---|
+| `dotnet build ControlSystem.sln` | exit 0; 0 warnings, 0 errors |
+| `dotnet test ControlSystem.sln` | exit 0; 37 passed, 0 failed, 0 skipped; 4 s |
+| `./scripts/browser-e2e.sh --no-restore --logger 'console;verbosity=normal'` | exit 0; 9 passed, 0 failed, 0 skipped; 95 s |
+| `git diff --check` | exit 0 |
+
+Всего **46 passed**. E2E — отдельный opt-in проект, не включённый в solution;
+без Chrome/сертификата тесты не подменяются skip.
+Reviewer не обнаружил блокирующих дефектов в конечной реализации.
+
+Подтверждённых продуктовых дефектов или новых утечек в проверенных сценариях не найдено.
+Во время разработки harness первый E2E-прогон дал 1 passed / 6 failed: ранние DI
+Replace были перекрыты регистрациями Program, и тест сеял snapshot в другой store.
+Исправлено test-only IServiceProviderFactory с поздней заменой store/clock и fail-fast
+проверкой ReferenceEquals. Затем исходные 7 cases прошли; финальный расширенный набор
+из 9 cases тоже прошёл. Продуктовый код для получения green не изменялся.
+Sandbox restore первоначально завершился NU1301/DNS, sandbox build завис без вывода;
+проверки выполнены вне sandbox после разрешения.
+
+Оставшиеся границы: ранее полученные bytes/DOM невозможно отозвать у отключённого
+браузера; отзыв не транзакционен с уже отправляемым ответом. Проверен один Chrome/macOS,
+синтетический snapshot публикуется напрямую в store (HTTPS heartbeat отдельно покрыт
+существующими ApiTests). Не проверены packet loss/blackhole, длительный outage/soak,
+reconnect storm, timer disposal после retention timeout, другие браузеры,
+PostgreSQL и Windows. Expiry использует сдвиг test-only серверных часов, не восьмичасовое
+ожидание. Следующие проверки — отдельный network/soak и cross-browser прогон.
+Commit, push, merge и deployment в этой задаче не выполнялись.
