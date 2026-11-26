@@ -34,7 +34,7 @@
 - [x] Повторная проверка circuit раз в секунду; Home проверяет доступ до/после чтения и скрывает защищённый UI.
 - [x] Независимое read-only review специализированным reviewer; блокирующих замечаний по коду и регрессиям нет.
 - [x] Итоговый dotnet build: 0 warnings/errors; dotnet test: 32 passed, 0 failed, 0 skipped (7 новых регрессий).
-- [ ] Browser/WebSocket E2E с двумя вкладками: подтвердить обновление UI и reconnect после expiry/logout.
+- [x] Browser/WebSocket E2E с двумя вкладками: обновление UI и reconnect после expiry/logout; см. `browser-e2e.md`.
 
 - [x] Интеграция Dashboard из `origin/main` (`2e8d6c3`), 24 ноября 2026: оба раздела задач и все исправления Home сохранены; адаптирован DI harness DashboardTests. Итоговый build: 0 warnings/errors; tests: 37 passed, 0 failed, 0 skipped (7 Security + 5 Dashboard регрессий).
 
@@ -48,7 +48,20 @@
 - [x] Добавлены 5 регрессионных UI-тестов: версия, CPU/RAM/диски в en-US и ru-RU, uptime, прогрев CPU, Online/Offline на границе 35 секунд, ошибка чтения, повторный рендер и восстановление.
 - [x] Frontend проверил цикл обновления и disposal; независимый read-only reviewer не обнаружил дефектов. API, DTO, авторизация и Windows Agent не изменены.
 - [x] В worktree `dashboard-improvements`, ветка `codex/dashboard-improvements`: `dotnet build ControlSystem.sln` — 0 warnings / 0 errors; `dotnet test ControlSystem.sln` — 30 passed / 0 failed / 0 skipped (946 ms). Выполнено вне sandbox после зависания sandbox-запуска без вывода.
-- [ ] Интерактивный browser/E2E: реальный пятисекундный таймер, SignalR/reconnect и отмена при закрытии circuit. Статический renderer проверяет повторный рендер через тестовый вызов lifecycle, но не запускает OnAfterRenderAsync и timer.
+- [x] Реальный пятисекундный таймер и SignalR/reconnect проверены Browser E2E ниже. Статический renderer сам по себе не запускает OnAfterRenderAsync и timer.
+- [ ] Отдельно проверить отмену timer после закрытия circuit и истечения retention timeout; Browser E2E этой задачи проверяет прекращение чтений после logout/expiry.
+
+## v0.2 — Browser E2E Validation, 24 ноября 2026
+
+- [x] Изучены circuit/session guards и существующие авторизационные тесты; frontend помог с browser-сценариями и DI harness.
+- [x] Добавлен отдельный opt-in Playwright/xUnit проект: настоящий Chrome + Kestrel HTTPS, runtime tokens, ephemeral DataProtection, явно выбранный Testing/InMemory и counting store.
+- [x] Login, anonymous access, logout в двух вкладках, cookie replay, expiry, независимые сессии, live refresh и reconnect без reload с сохранением circuit.
+- [x] Offline → logout/expiry → reconnect: отказ negotiation, запрет новых telemetry reads и отсутствие нового marker в DOM/входящих frames с положительным контролем observer.
+- [x] Отрицательный browser TLS control с недоверенным self-signed сертификатом; TLS/hostname validation не отключаются.
+- [x] Воспроизводимый Mac запуск: `scripts/browser-e2e.sh` и `docs/browser-e2e.md`; E2E запускается отдельно от solution и не скрывает отсутствие prerequisites через skip.
+- [x] Финальные проверки вне sandbox: `dotnet build ControlSystem.sln` — exit 0, 0 warnings/errors; `dotnet test ControlSystem.sln` — 37 passed / 0 failed / 0 skipped, 4 s; Browser E2E — 9 passed / 0 failed / 0 skipped, 95 s. Всего 46 passed. Независимое read-only reviewer review: блокирующих замечаний нет; `git diff --check` — exit 0.
+- Ограничения: ранее доставленный offline DOM не отзывается; packet loss/blackhole, reconnect storm, длительный soak и disposal после circuit retention timeout не проверены. PostgreSQL/Windows вне этого прогона.
+- Product/Contracts/Agent не изменены. Commit, push, merge, deployment не выполнялись.
 
 ## Следующие независимые задачи
 
