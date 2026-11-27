@@ -108,3 +108,8 @@ TLS renewal/revocation, аудит и operational metrics. Состояние р
 - [Npgsql EF Core 10](https://www.npgsql.org/efcore/release-notes/10.0.html).
 - [Microsoft: Windows Worker Service](https://learn.microsoft.com/en-us/dotnet/core/extensions/windows-service).
 - [Microsoft: Blazor security](https://learn.microsoft.com/en-us/aspnet/core/blazor/security/?view=aspnetcore-10.0).
+
+## ADR-008: история телеметрии v0.2
+
+Отдельная TelemetryHistory, атомарная запись с Devices, серверное время для диапазонов,
+два составных индекса и opt-in bounded retention. Детали и ограничения: [telemetry-history.md](telemetry-history.md).

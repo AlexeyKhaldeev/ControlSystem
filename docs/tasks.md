@@ -88,3 +88,16 @@ Contracts, `Program.cs`, csproj/solution, общие конфиги и мигр�
 5. Прогноз дисков на истории, оценка confidence и отсутствие данных.
 6. Разрешённые приложения: allowlist IDs, ограниченные параметры, права, аудит и идемпотентные команды.
 7. AI-анализ логов: только после стабильного Monitoring Core; предварительная очистка чувствительных данных.
+
+## v0.2 — Telemetry History, 27 ноября 2026
+
+- [x] Изучены EF/миграции: ранее сохранялся только latest, все метрики уже были в JSON.
+- [x] Additive TelemetryHistory, атомарная запись history/latest, bigint PK и индексы device/time/id и time/id.
+- [x] Opt-in retention, строгий server-time cutoff, ограниченные пакеты, проверка настроек и readiness схемы.
+- [x] Backend: 8 PostgreSQL integration + unit конфигурации; миграции/сохранение прежних данных, конкуренция, rollback, retention, HTTPS host restart, perf smoke.
+- [x] Реальный PostgreSQL 17: полная сборка 0 warnings/errors, тесты 46 passed / 0 failed / 0 skipped.
+- [x] Независимый architect review; замечания исправлены, блокирующих нет; git diff --check прошёл.
+- [ ] Production-size soak, autovacuum/bloat/WAL, backup/restore и crash recovery на целевой среде.
+
+Архитектура, настройки, измерения и ограничения: [telemetry-history.md](telemetry-history.md).
+Agent, Dashboard, API DTO и безопасность не изменены. Commit/push/merge не выполнялись.

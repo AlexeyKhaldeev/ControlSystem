@@ -48,6 +48,8 @@ public partial class Program
             .Validate(options => options.IsValid(), "Configure a unique SHA256 operator token hash and 1–100 unique agent IDs/token hashes.").ValidateOnStart();
         builder.Services.AddOptions<MonitoringOptions>().BindConfiguration("Monitoring")
             .Validate(options => options.OfflineAfterSeconds is >= 20 and <= 300, "OfflineAfterSeconds must be 20–300.").ValidateOnStart();
+        builder.Services.AddOptions<HistoryRetentionOptions>().BindConfiguration("HistoryRetention")
+            .Validate(options => options.IsValid(), "Invalid history retention days, batch size or interval.").ValidateOnStart();
         var provider = builder.Configuration["Database:Provider"] ?? "PostgreSql";
         if (provider.Equals("InMemory", StringComparison.OrdinalIgnoreCase))
         {
@@ -60,7 +62,9 @@ public partial class Program
             var connection = builder.Configuration.GetConnectionString("Monitoring")
                 ?? throw new InvalidOperationException("Set ConnectionStrings__Monitoring for PostgreSQL.");
             builder.Services.AddDbContextFactory<MonitoringDbContext>(options => options.UseNpgsql(connection));
-            builder.Services.AddSingleton<IDeviceStore, PostgresDeviceStore>();
+            builder.Services.AddSingleton<PostgresDeviceStore>();
+            builder.Services.AddSingleton<IDeviceStore>(services => services.GetRequiredService<PostgresDeviceStore>());
+            builder.Services.AddHostedService<HistoryRetentionService>();
         }
         else throw new InvalidOperationException("Database:Provider must be PostgreSql or InMemory.");
         builder.Services.AddScoped<MonitoringService>();
