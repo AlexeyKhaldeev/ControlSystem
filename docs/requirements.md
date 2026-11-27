@@ -17,7 +17,7 @@
 | Идентификация | Заранее созданный UUID, индивидуальный случайный токен 256 бит |
 | Статус | Online до 35 секунд включительно; Offline после 35 секунд без heartbeat |
 | Отображение | Защищённая Blazor-страница; обновление раз в 5 секунд через Interactive Server / SignalR |
-| Хранение | Последний принятый snapshot каждого виденного устройства; PostgreSQL/EF Core |
+| Хранение | Последний snapshot и история принятых heartbeat; PostgreSQL/EF Core, opt-in retention |
 | macOS | Явный `--simulate`; синтетические данные и маркировка в UI; опциональное volatile InMemory-хранилище |
 | Защита | Отдельные agent/operator policies, CSRF для login/logout, secure HttpOnly cookie, rate limit, body limit 64 KiB |
 | Проверки | xUnit: validation, auth, Offline, конкуренция, transport, EF model/migration |
@@ -45,4 +45,4 @@
 ## Вне текущего объёма
 
 Произвольное удалённое выполнение кода, shell-команды, AI, auto discovery,
-централизованный installer/updates, HA, автономная очередь телеметрии, история метрик.
+централизованный installer/updates, HA, автономная очередь телеметрии.
