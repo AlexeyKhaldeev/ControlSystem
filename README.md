@@ -129,5 +129,3 @@ Git init в среде подготовки заблокирован права�
 git init -b main
 git status --short
 ```
-
-Коммит не создан.
