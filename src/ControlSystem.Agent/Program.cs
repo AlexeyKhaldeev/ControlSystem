@@ -20,6 +20,10 @@ builder.Services.AddSingleton<IHeartbeatClient, HeartbeatClient>();
 builder.Services.AddHostedService<TelemetryWorker>();
 #if WINDOWS_SERVICE
 builder.Services.AddWindowsService(options => options.ServiceName = "ControlSystem.Agent");
+builder.Logging.AddEventLog(settings =>
+{
+    if (OperatingSystem.IsWindows()) settings.SourceName = "ControlSystem.Agent";
+});
 #endif
 
 using var host = builder.Build();

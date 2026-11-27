@@ -88,3 +88,13 @@ Contracts, `Program.cs`, csproj/solution, общие конфиги и мигр�
 5. Прогноз дисков на истории, оценка confidence и отсутствие данных.
 6. Разрешённые приложения: allowlist IDs, ограниченные параметры, права, аудит и идемпотентные команды.
 7. AI-анализ логов: только после стабильного Monitoring Core; предварительная очистка чувствительных данных.
+
+## v0.2 — Windows Agent Validation, 27 ноября 2026
+
+- [x] Отдельный worktree от main: windows-agent-validation, ветка codex/windows-agent-validation.
+- [x] Аудит Agent/Contracts/lifecycle с windows_agent и независимым read-only reviewer.
+- [x] Исправлены CPU unavailable/processor groups, валидация обязательных метрик, версия сборки, token validation, HTTP response buffering и backoff.
+- [x] Успешный self-contained win-x64 cross-publish; подготовлены publish script и инструкции LocalService/ACL/EventLog/SCM recovery/update/rollback/removal.
+- [x] Финальные restore/build/test: exit 0; build 0 warnings/errors; tests 56 passed / 0 failed / 0 skipped (19 новых Agent cases). Независимый read-only reviewer: блокирующих замечаний нет.
+- [ ] Нативная приёмка Windows 10/11: метрики, SCM stop/recovery, EventLog/ACL, reboot, TLS/network faults и 24h soak. macOS fake-тесты и cross-publish её не заменяют.
+- Подробности и пошаговый acceptance checklist: `windows-agent.md`. Server/Contracts/EF/Dashboard не изменены. Commit/push/merge/deployment не выполнялись.

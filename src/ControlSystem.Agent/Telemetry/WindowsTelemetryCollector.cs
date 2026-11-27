@@ -1,70 +1,56 @@
-using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using ControlSystem.Contracts;
-
 namespace ControlSystem.Agent.Telemetry;
-
-[SupportedOSPlatform("windows")]
-public sealed class WindowsTelemetryCollector(ILogger<WindowsTelemetryCollector> logger) : ITelemetryCollector
+public sealed class WindowsTelemetryCollector : ITelemetryCollector
 {
-    private (ulong Idle, ulong Kernel, ulong User)? _previous;
+    private readonly ILogger<WindowsTelemetryCollector> _logger;
+    private readonly IWindowsTelemetrySource _source;
+    private CpuTimes? _previous;
+    private bool _cpuUnavailable;
+    [SupportedOSPlatform("windows")]
+    public WindowsTelemetryCollector(ILogger<WindowsTelemetryCollector> logger) : this(logger, new WindowsTelemetrySource()) { }
+    public WindowsTelemetryCollector(ILogger<WindowsTelemetryCollector> logger, IWindowsTelemetrySource source)
+    { _logger = logger; _source = source; }
     public bool IsSimulated => false;
     public string Hostname => Environment.MachineName;
     public string OperatingSystemName => RuntimeInformation.OSDescription;
-
     public Task<TelemetrySnapshot> CollectAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (!GetSystemTimes(out var idle, out var kernel, out var user)) throw new Win32Exception(Marshal.GetLastWin32Error());
+        var current = _source.ReadCpuTimes();
         double? cpu = null;
-        if (_previous is { } p && kernel >= p.Kernel && user >= p.User && idle >= p.Idle)
+        if (current is { } c && _previous is { } p && c.Kernel >= p.Kernel && c.User >= p.User && c.Idle >= p.Idle)
         {
-            var total = (kernel - p.Kernel) + (user - p.User);
-            if (total > 0) cpu = Math.Clamp(100d * (total - Math.Min(total, idle - p.Idle)) / total, 0, 100);
+            var total = (double)(c.Kernel - p.Kernel) + (c.User - p.User);
+            var idle = c.Idle - p.Idle;
+            if (total > 0 && idle <= total) cpu = Math.Clamp(100d * (total - idle) / total, 0, 100);
         }
-        _previous = (idle, kernel, user);
-        var memory = new MemoryStatus { Length = (uint)Marshal.SizeOf<MemoryStatus>() };
-        if (!GlobalMemoryStatusEx(ref memory)) throw new Win32Exception(Marshal.GetLastWin32Error());
+        _previous = current;
+        if (current is null && !_cpuUnavailable)
+            _logger.LogWarning("System CPU metric unavailable (native sample failure or more than 64 logical processors).");
+        _cpuUnavailable = current is null;
+        var memory = _source.ReadMemory();
+        if (memory.Total == 0 || memory.Total > long.MaxValue || memory.Available > memory.Total)
+            throw new IOException("Invalid physical memory sample.");
+        var uptime = _source.ReadUptimeMilliseconds() / 1000;
+        if (uptime > 3_155_760_000) throw new IOException("Invalid system uptime sample.");
         var disks = new List<DiskTelemetry>();
-        foreach (var drive in DriveInfo.GetDrives())
+        foreach (var drive in _source.GetDrives())
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (disks.Count == MonitoringProtocol.MaxDisks) break;
             try
             {
-                if (drive.DriveType == DriveType.Fixed && drive.IsReady && drive.TotalSize > 0)
-                    disks.Add(new(drive.Name, drive.TotalSize, drive.TotalFreeSpace));
+                if (drive.DriveType != DriveType.Fixed || !drive.IsReady) continue;
+                var total = drive.TotalSize;
+                var free = drive.TotalFreeSpace;
+                if (total > 0 && free >= 0 && free <= total && drive.Name.Length <= 200)
+                    disks.Add(new(drive.Name, total, free));
             }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException)
-            {
-                logger.LogWarning("Cannot read disk {Drive}: {ErrorType}", drive.Name, error.GetType().Name);
-            }
+            { _logger.LogWarning("Cannot read disk {Drive}: {ErrorType}", drive.Name, error.GetType().Name); }
         }
-        return Task.FromResult(new TelemetrySnapshot(cpu, checked((long)memory.TotalPhysical), checked((long)memory.AvailablePhysical),
-            checked((long)(GetTickCount64() / 1000)), disks.Take(MonitoringProtocol.MaxDisks).ToArray()));
+        return Task.FromResult(new TelemetrySnapshot(cpu, (long)memory.Total, (long)memory.Available, (long)uptime, disks));
     }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MemoryStatus
-    {
-        public uint Length;
-        public uint MemoryLoad;
-        public ulong TotalPhysical;
-        public ulong AvailablePhysical;
-        public ulong TotalPageFile;
-        public ulong AvailablePageFile;
-        public ulong TotalVirtual;
-        public ulong AvailableVirtual;
-        public ulong AvailableExtendedVirtual;
-    }
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetSystemTimes(out ulong idle, out ulong kernel, out ulong user);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GlobalMemoryStatusEx(ref MemoryStatus memory);
-
-    [DllImport("kernel32.dll")]
-    private static extern ulong GetTickCount64();
 }
