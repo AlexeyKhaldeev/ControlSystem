@@ -1,6 +1,12 @@
 # План работ и делегирование
 
-Обновлено: 24 ноября 2026. Проверки и ограничения среды — `verification.md`.
+Обновлено: 27 ноября 2026. Проверки и ограничения среды — `verification.md`.
+
+Результаты и ограничения в разделах инкрементов относятся к соответствующим прогонам.
+Ранние незакрытые пункты отражают состояние на момент того инкремента; актуальные
+оставшиеся работы перечислены в общем плане и разделах v0.2 ниже. Результаты
+Windows Agent и Telemetry History получены до интеграции и не являются результатом
+общего прогона объединённой ветки.
 
 ## Выполнено в стартовом инкременте
 
@@ -67,8 +73,8 @@
 
 | Приоритет | Задача / агент | Область владения | Критерий готовности |
 |---|---|---|---|
-| P0 | Windows verification | Agent/Telemetry, отдельный отчёт | CPU сопоставлен с Task Manager, RAM/диски/uptime проверены; SCM stop/start/recovery и перезагрузка |
-| P0 | PostgreSQL verification | Новые integration-тесты, отдельный test DB | Применение/повтор миграций, concurrent upsert, restart persistence, disconnect/readiness, backup/restore |
+| P0 | Windows verification | Agent/Telemetry, отдельный отчёт | Осталась нативная приёмка Windows 10/11: CPU/RAM/диски/uptime, SCM stop/start/recovery, ACL/EventLog, перезагрузка и soak; подготовка и cross-publish завершены, см. Windows Agent Validation |
+| P0 | PostgreSQL verification | Integration-тесты, отдельный test DB | Миграции/concurrent upsert/rollback/host restart проверены в Telemetry History; остаются disconnect/readiness при сбое БД, backup/restore и crash recovery на целевой среде |
 | P0 | Security review, read-only | Отчёт без изменения общих файлов | Bearer/cookie границы, CSRF, hub auth, TLS, secrets/ACL, ограничение запросов |
 | P1 | UI verification/accessibility | Components, wwwroot | Реальный browser E2E: login, online/offline, reconnect, stale/error состояния, mobile и клавиатура |
 | P1 | Нагрузочный/soak тест | scripts/load + отчёт | 100 UUID, 10 s interval, 24 h, latency/error rate/CPU/RAM/БД, reconnect storm |
@@ -81,13 +87,23 @@ Contracts, `Program.cs`, csproj/solution, общие конфиги и мигр�
 
 ## После приёмки Monitoring Core
 
-1. Хранение истории с retention, индексы/агрегации и operational metrics.
+1. Для реализованной истории с retention и индексами: production-size soak, operational metrics и агрегации; результаты и оставшиеся проверки — в разделе Telemetry History ниже.
 2. Provisioning/revoke/rotate tokens, operator accounts/RBAC и аудит.
 3. Процессы Unity/Resolume/vvvv: discovery по allowlist, PID/session, статус и restart detection.
 4. Температуры: выбор доверенного источника, thresholds/hysteresis и модель unavailable.
 5. Прогноз дисков на истории, оценка confidence и отсутствие данных.
 6. Разрешённые приложения: allowlist IDs, ограниченные параметры, права, аудит и идемпотентные команды.
 7. AI-анализ логов: только после стабильного Monitoring Core; предварительная очистка чувствительных данных.
+
+## v0.2 — Windows Agent Validation, 27 ноября 2026
+
+- [x] Отдельный worktree от main: windows-agent-validation, ветка codex/windows-agent-validation.
+- [x] Аудит Agent/Contracts/lifecycle с windows_agent и независимым read-only reviewer.
+- [x] Исправлены CPU unavailable/processor groups, валидация обязательных метрик, версия сборки, token validation, HTTP response buffering и backoff.
+- [x] Успешный self-contained win-x64 cross-publish; подготовлены publish script и инструкции LocalService/ACL/EventLog/SCM recovery/update/rollback/removal.
+- [x] Финальные restore/build/test: exit 0; build 0 warnings/errors; tests 56 passed / 0 failed / 0 skipped (19 новых Agent cases). Независимый read-only reviewer: блокирующих замечаний нет.
+- [ ] Нативная приёмка Windows 10/11: метрики, SCM stop/recovery, EventLog/ACL, reboot, TLS/network faults и 24h soak. macOS fake-тесты и cross-publish её не заменяют.
+- Подробности и пошаговый acceptance checklist: `windows-agent.md`. Server/Contracts/EF/Dashboard не изменены. Commit/push/merge/deployment не выполнялись.
 
 ## v0.2 — Telemetry History, 27 ноября 2026
 
