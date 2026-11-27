@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and test (PostgreSQL 17)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: controlsystem_ci_test
+          POSTGRES_USER: controlsystem_ci
+          # Disposable CI-only credentials; never reuse outside this service.
+          POSTGRES_PASSWORD: controlsystem_ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U controlsystem_ci -d controlsystem_ci_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      CONTROLSYSTEM_TEST_POSTGRES: Host=localhost;Port=5432;Database=controlsystem_ci_test;Username=controlsystem_ci;Password=controlsystem_ci_only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore ControlSystem.sln
+      - name: Build
+        run: dotnet build ControlSystem.sln
+      - name: Test (including PostgreSQL integration)
+        run: dotnet test ControlSystem.sln
+
+  publish-agent:
+    name: Publish Agent (win-x64 self-contained)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publish Windows Agent
+        run: dotnet publish src/ControlSystem.Agent/ControlSystem.Agent.csproj -c Release -r win-x64 --self-contained true
